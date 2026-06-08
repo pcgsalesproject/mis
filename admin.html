@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Smartsoft MIS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&family=Prompt:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">MIS Form</div>
+    <div class="login-title">Admin Panel</div>
+    <div id="login-error" class="login-error" style="display:none;"></div>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="admin@example.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="login-btn">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<div class="wrap" id="admin-wrap" style="display:none;">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h1>Admin — สรุปข้อมูลลูกค้าระบบ Smartsoft</h1>
+        <p>ข้อมูลลูกค้าเปิดหน้าบัญชีใหม่</p>
+      </div>
+      <div style="display:flex; gap:16px; align-items:center;">
+        <a class="header-link" href="index.html">← กลับหน้ากรอกข้อมูล</a>
+        <button class="header-link logout-btn" id="logoutBtn" style="background:none; border:none; cursor:pointer;">ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div id="toast" class="toast"></div>
+
+      <!-- Filter -->
+      <div class="filter-bar">
+        <div>
+          <label>วันที่เริ่มต้น</label>
+          <input type="date" id="filter-from">
+        </div>
+        <div>
+          <label>วันที่สิ้นสุด</label>
+          <input type="date" id="filter-to">
+        </div>
+        <div>
+          <label>ภาค</label>
+          <select id="filter-region"><option value="">ทุกภาค</option></select>
+        </div>
+        <div>
+          <label>พนักงานขาย</label>
+          <select id="filter-salesperson"><option value="">ทุกคน</option></select>
+        </div>
+        <div>
+          <label>ค้นหา</label>
+          <input type="text" id="filter-search" placeholder="ชื่อลูกค้า / CV Code">
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn-search" id="searchBtn">ค้นหา</button>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn-export" id="exportBtn" disabled>Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="s-label">ทั้งหมด</div>
+          <div class="s-value" id="sum-total">—</div>
+          <div class="s-sub">รายการ</div>
+        </div>
+        <div class="summary-card" id="sum-region-card" style="display:none;">
+          <div class="s-label">ภาคที่เปิดบัญชีใหม่มากที่สุด</div>
+          <div class="s-value s-text" id="sum-top-region">—</div>
+          <div class="s-sub" id="sum-top-region-count"></div>
+        </div>
+        <div class="summary-card" id="sum-type-card" style="display:none;">
+          <div class="s-label">ช่องทางการขายที่มากที่สุด</div>
+          <div class="s-value s-text" id="sum-top-type">—</div>
+          <div class="s-sub" id="sum-top-type-count"></div>
+        </div>
+        <div class="summary-card" id="sum-no-cv-card">
+          <div class="s-label">ยังไม่ได้บันทึก CV</div>
+          <div class="s-value" id="sum-no-cv" style="color:#e24b4a;">—</div>
+          <div class="s-sub">รายการ</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>วันที่</th>
+              <th style="width:160px;">CV Code</th>
+              <th style="width:190px;">ชื่อลูกค้า</th>
+              <th>ประเภท</th>
+              <th>ภาค</th>
+              <th>เขตการขาย</th>
+              <th>จังหวัด</th>
+              <th style="width:120px;">CV ลูกค้าบัญชีหลัก</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr class="state-row"><td colspan="8">กำลังโหลดข้อมูล...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination" id="pagination" style="display:none;">
+        <span id="pagination-info"></span>
+        <div class="pagination-btns" id="pagination-btns"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://yhubakddmtabpubhkhkn.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_dBr6rMv_7NFC7cIgfZ8aMA__M7YDHMc';
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const PAGE_SIZE = 25;
+  let allData = [];
+  let filteredData = [];
+  let currentPage = 1;
+
+  function showToast(message, type) {
+    const toast = document.getElementById("toast");
+    toast.className = "toast " + type;
+    toast.textContent = message;
+    toast.style.display = "block";
+    toast.style.animation = "none";
+    toast.offsetHeight;
+    toast.style.animation = "slideIn 0.6s ease forwards";
+    setTimeout(() => {
+      toast.style.animation = "fadeOut 0.8s ease forwards";
+      setTimeout(() => { toast.style.display = "none"; }, 400);
+    }, 2500);
+  }
+
+  function localDateStr(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function tzOffset() {
+    const off = -new Date().getTimezoneOffset();
+    const sign = off >= 0 ? '+' : '-';
+    const h = String(Math.floor(Math.abs(off) / 60)).padStart(2, '0');
+    const m = String(Math.abs(off) % 60).padStart(2, '0');
+    return `${sign}${h}:${m}`;
+  }
+
+  function setDefaultDates() {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    document.getElementById("filter-from").value = localDateStr(first);
+    document.getElementById("filter-to").value   = localDateStr(last);
+  }
+
+  async function loadData() {
+    const btn = document.getElementById("searchBtn");
+    btn.disabled = true;
+    btn.textContent = "กำลังค้นหา...";
+
+    const dateFrom = document.getElementById("filter-from").value;
+    const dateTo   = document.getElementById("filter-to").value;
+    const region   = document.getElementById("filter-region").value;
+    const sales    = document.getElementById("filter-salesperson").value;
+
+    try {
+      let q = db.from('customers').select('*').order('created_at', { ascending: false });
+      const tz = tzOffset();
+      if (dateFrom) q = q.gte('created_at', dateFrom + 'T00:00:00' + tz);
+      if (dateTo)   q = q.lte('created_at', dateTo   + 'T23:59:59' + tz);
+      if (region)   q = q.eq('region', region);
+      if (sales)    q = q.eq('created_by', sales);
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      allData = data || [];
+      buildDropdownOptions();
+      applySearch();
+      document.getElementById("exportBtn").disabled = false;
+    } catch (err) {
+      showToast("โหลดข้อมูลไม่สำเร็จ: " + (err.message || err), "error");
+      renderTable([]);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "ค้นหา";
+    }
+  }
+
+  function applySearch() {
+    const q = document.getElementById("filter-search").value.trim().toLowerCase();
+    filteredData = q
+      ? allData.filter(r =>
+          (r.customer_name || "").toLowerCase().includes(q) ||
+          (r.cv_code || "").toLowerCase().includes(q) ||
+          (r.created_by || "").toLowerCase().includes(q)
+        )
+      : [...allData];
+    currentPage = 1;
+    renderSummary(filteredData);
+    renderTable(filteredData);
+  }
+
+  function buildDropdownOptions() {
+    const regions     = [...new Set(allData.map(r => r.region).filter(Boolean))].sort();
+    const salespersons = [...new Set(allData.map(r => r.created_by).filter(Boolean))].sort();
+
+    const regionSel = document.getElementById("filter-region");
+    const prev = regionSel.value;
+    regionSel.innerHTML = '<option value="">ทุกภาค</option>';
+    regions.forEach(name => {
+      const o = document.createElement("option");
+      o.value = name; o.textContent = name;
+      if (name === prev) o.selected = true;
+      regionSel.appendChild(o);
+    });
+
+    const salesSel = document.getElementById("filter-salesperson");
+    const prevS = salesSel.value;
+    salesSel.innerHTML = '<option value="">ทุกคน</option>';
+    salespersons.forEach(name => {
+      const o = document.createElement("option");
+      o.value = name; o.textContent = name;
+      if (name === prevS) o.selected = true;
+      salesSel.appendChild(o);
+    });
+  }
+
+  function renderSummary(data) {
+    document.getElementById("sum-total").textContent = data.length.toLocaleString();
+
+    const noCv = data.filter(r => !r.cv_code || !String(r.cv_code).trim()).length;
+    document.getElementById("sum-no-cv").textContent = noCv.toLocaleString();
+
+    const byRegion = {}, byType = {}, bySales = {};
+    data.forEach(r => {
+      if (r.region)        byRegion[r.region] = (byRegion[r.region] || 0) + 1;
+      if (r.customer_type) byType[r.customer_type] = (byType[r.customer_type] || 0) + 1;
+      if (r.created_by)    bySales[r.created_by] = (bySales[r.created_by] || 0) + 1;
+    });
+
+    const top = obj => Object.entries(obj).sort((a, b) => b[1] - a[1])[0];
+    const topRegion = top(byRegion);
+    const topType   = top(byType);
+    const topSales  = top(bySales);
+
+    if (topRegion) {
+      document.getElementById("sum-top-region").textContent = topRegion[0];
+      document.getElementById("sum-top-region-count").textContent = topRegion[1] + " รายการ";
+      document.getElementById("sum-region-card").style.display = "";
+    } else {
+      document.getElementById("sum-region-card").style.display = "none";
+    }
+    if (topType) {
+      document.getElementById("sum-top-type").textContent = topType[0];
+      document.getElementById("sum-top-type-count").textContent = topType[1] + " รายการ";
+      document.getElementById("sum-type-card").style.display = "";
+    } else {
+      document.getElementById("sum-type-card").style.display = "none";
+    }
+  }
+
+  function renderTable(data) {
+    const tbody      = document.getElementById("table-body");
+    const pagination = document.getElementById("pagination");
+
+    if (!data.length) {
+      tbody.innerHTML = '<tr class="state-row"><td colspan="8">ไม่พบข้อมูลในช่วงที่เลือก</td></tr>';
+      pagination.style.display = "none";
+      return;
+    }
+
+    const totalPages = Math.ceil(data.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = 1;
+    const start    = (currentPage - 1) * PAGE_SIZE;
+    const pageData = data.slice(start, start + PAGE_SIZE);
+
+    tbody.innerHTML = pageData.map(row => {
+      const date = row.created_at
+        ? new Date(row.created_at).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })
+        : "";
+      return `<tr data-id="${row.id}">
+        <td style="white-space:nowrap;">${date}</td>
+        <td><div class="cv-cell"><input class="cv-input" data-orig="${esc(row.cv_code || '')}" value="${esc(row.cv_code || '')}" placeholder="—" aria-label="CV Code" maxlength="9"><button class="cv-save-btn">บันทึก</button></div></td>
+        <td><strong>${esc(row.customer_name)}</strong></td>
+        <td>${esc(row.customer_type) || '<span class="muted">—</span>'}</td>
+        <td>${esc(row.region) || '<span class="muted">—</span>'}</td>
+        <td>${esc(row.sales_area) || '<span class="muted">—</span>'}</td>
+        <td>${esc(row.province) || '<span class="muted">—</span>'}</td>
+        <td>${esc(row.ref_cv_code) || '<span class="muted">—</span>'}</td>
+      </tr>`;
+    }).join("");
+
+    pagination.style.display = "flex";
+    document.getElementById("pagination-info").textContent =
+      `แสดง ${start + 1}–${Math.min(start + PAGE_SIZE, data.length)} จาก ${data.length.toLocaleString()} รายการ`;
+    renderPagination(totalPages);
+  }
+
+  function renderPagination(totalPages) {
+    const wrap = document.getElementById("pagination-btns");
+    wrap.innerHTML = "";
+
+    const mkBtn = (label, page, disabled, active) => {
+      const b = document.createElement("button");
+      b.className = "pg-btn" + (active ? " active" : "");
+      b.textContent = label;
+      b.disabled = disabled;
+      if (!disabled) b.onclick = () => { currentPage = page; renderTable(filteredData); };
+      wrap.appendChild(b);
+    };
+
+    mkBtn("←", currentPage - 1, currentPage === 1, false);
+    paginationRange(currentPage, totalPages).forEach(p => {
+      mkBtn(p === "..." ? "…" : p, p, p === "...", p === currentPage);
+    });
+    mkBtn("→", currentPage + 1, currentPage === totalPages, false);
+  }
+
+  function paginationRange(cur, total) {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    if (cur <= 4)          return [1, 2, 3, 4, 5, "...", total];
+    if (cur >= total - 3)  return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+    return [1, "...", cur - 1, cur, cur + 1, "...", total];
+  }
+
+  async function saveCvCode(input, btn) {
+    const newVal  = input.value.trim();
+    const origVal = input.dataset.orig;
+    if (newVal === origVal) return;
+
+    const rowId = input.closest("tr").dataset.id;
+    input.disabled = true;
+    btn.disabled = true;
+    btn.textContent = "กำลังบันทึก...";
+
+    try {
+      const { error } = await db.from('customers')
+        .update({ cv_code: newVal || null })
+        .eq('id', rowId);
+      if (error) throw error;
+
+      [allData, filteredData].forEach(arr => {
+        const rec = arr.find(r => String(r.id) === String(rowId));
+        if (rec) rec.cv_code = newVal || null;
+      });
+      input.dataset.orig = newVal;
+      btn.classList.remove("visible");
+      btn.textContent = "บันทึก";
+
+      input.classList.add("saved");
+      setTimeout(() => input.classList.remove("saved"), 1500);
+    } catch (err) {
+      input.value = origVal;
+      btn.textContent = "บันทึก";
+      btn.classList.remove("visible");
+      showToast("บันทึกไม่สำเร็จ: " + (err.message || err), "error");
+    } finally {
+      input.disabled = false;
+      btn.disabled = false;
+    }
+  }
+
+  function esc(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function exportCSV() {
+    if (!filteredData.length) return;
+    const headers = [
+      "วันที่", "CV Code", "ชื่อลูกค้า", "ประเภท",
+      "ภาค", "กลุ่มเขต", "เขตการขาย", "จังหวัด",
+      "CV Code บัญชีหลัก", "ชื่อบัญชีหลัก",
+      "ช่องทาง", "Email", "พนักงานขาย", "หมายเหตุ"
+    ];
+    const rows = filteredData.map(r => [
+      r.created_at ? new Date(r.created_at).toLocaleDateString("th-TH") : "",
+      r.cv_code || "", r.customer_name || "", r.customer_type || "",
+      r.region || "", r.sub_region || "", r.sales_area || "", r.province || "",
+      r.ref_cv_code || "", r.ref_customer || "",
+      r.doc_channel || "", r.doc_email || "",
+      r.created_by || "", r.remark || ""
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`));
+
+    const csv = "﻿" + [
+      headers.map(h => `"${h}"`).join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    a.download = "MIS_export_" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function initAdminEvents() {
+    setDefaultDates();
+
+    document.getElementById("searchBtn").onclick = loadData;
+    document.getElementById("exportBtn").onclick = exportCSV;
+
+    document.getElementById("filter-search").addEventListener("keydown", e => {
+      if (e.key === "Enter") applySearch();
+    });
+    document.getElementById("filter-search").addEventListener("input", () => {
+      applySearch();
+    });
+
+    document.getElementById("table-body").addEventListener("input", e => {
+      if (!e.target.classList.contains("cv-input")) return;
+      const btn = e.target.closest(".cv-cell").querySelector(".cv-save-btn");
+      btn.classList.toggle("visible", e.target.value.trim() !== e.target.dataset.orig);
+    });
+
+    document.getElementById("table-body").addEventListener("click", e => {
+      if (!e.target.classList.contains("cv-save-btn")) return;
+      const input = e.target.closest(".cv-cell").querySelector(".cv-input");
+      saveCvCode(input, e.target);
+    });
+
+    document.getElementById("logoutBtn").onclick = async () => {
+      await db.auth.signOut();
+      document.getElementById("admin-wrap").style.display = "none";
+      document.getElementById("login-overlay").style.display = "flex";
+      document.getElementById("login-password").value = "";
+    };
+
+    loadData();
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    // Check existing session
+    const { data: { session } } = await db.auth.getSession();
+    if (session) {
+      document.getElementById("login-overlay").style.display = "none";
+      document.getElementById("admin-wrap").style.display = "";
+      initAdminEvents();
+      return;
+    }
+
+    // Login form
+    const loginBtn = document.getElementById("login-btn");
+    const loginError = document.getElementById("login-error");
+
+    async function doLogin() {
+      const email    = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      if (!email || !password) return;
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = "กำลังเข้าสู่ระบบ...";
+      loginError.style.display = "none";
+
+      const { error } = await db.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        loginError.textContent = "Email หรือ Password ไม่ถูกต้อง";
+        loginError.style.display = "block";
+        loginBtn.disabled = false;
+        loginBtn.textContent = "เข้าสู่ระบบ";
+      } else {
+        document.getElementById("login-overlay").style.display = "none";
+        document.getElementById("admin-wrap").style.display = "";
+        initAdminEvents();
+      }
+    }
+
+    loginBtn.onclick = doLogin;
+    document.getElementById("login-password").addEventListener("keydown", e => {
+      if (e.key === "Enter") doLogin();
+    });
+  });
+</script>
+</body>
+</html>

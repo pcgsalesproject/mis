@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reprint - MIS Form</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&family=Prompt:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .filter-wrap {
+      background: #f8f9fb; border: 1px solid #e8edf2;
+      border-radius: 10px; padding: 14px; margin-bottom: 1.25rem;
+    }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .filter-row label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; }
+    .filter-row input[type="date"],
+    .filter-row input[type="text"],
+    .filter-row select {
+      font-family: 'Sarabun', sans-serif; font-size: 13px; color: #222;
+      background: #fff; border: 1px solid #e2e6ea; border-radius: 7px;
+      height: 32px; padding: 0 10px; outline: none;
+    }
+    .filter-row input[type="text"] { width: 200px; }
+    .filter-row select {
+      padding-right: 28px; appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+    }
+    .filter-row select { width: 140px; }
+    .result-card {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; background: #f8f9fb; border-radius: 10px;
+      border: 1px solid #e8edf2; margin-bottom: 8px;
+    }
+    .result-name { font-size: 13px; font-weight: 600; color: #1a3a5c; margin-bottom: 3px; }
+    .result-meta { font-size: 11px; color: #888; }
+    .badge { background: #e8f0fb; color: #378add; padding: 1px 6px; border-radius: 8px; margin-right: 4px; }
+    @media (max-width: 700px) {
+      .filter-row { flex-direction: column; align-items: stretch; }
+      .filter-row input[type="text"], .filter-row select { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <div class="header-text">
+        <h1>Reprint แบบฟอร์ม</h1>
+        <p>ค้นหาและพิมพ์เอกสารที่บันทึกไว้แล้ว</p>
+      </div>
+      <a href="index.html" class="header-link">← กลับหน้ากรอกข้อมูล</a>
+    </div>
+
+    <div class="card-body">
+      <div id="toast" class="toast"></div>
+
+      <div class="filter-wrap">
+        <div class="filter-row">
+          <div>
+            <label>วันที่เริ่มต้น</label>
+            <input type="date" id="filter-from">
+          </div>
+          <div>
+            <label>วันที่สิ้นสุด</label>
+            <input type="date" id="filter-to">
+          </div>
+          <div>
+            <label>ภาค</label>
+            <select id="filter-region"><option value="">ทุกภาค</option></select>
+          </div>
+          <div>
+            <label>เขตการขาย</label>
+            <select id="filter-area"><option value="">ทุกเขต</option></select>
+          </div>
+          <div>
+            <label>ชื่อพนักงานขาย</label>
+            <input type="text" id="filter-name" placeholder="ค้นหาชื่อ...">
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button class="btn-primary" id="searchBtn" style="height:32px; padding:0 18px; font-size:13px;">ค้นหา</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="results"></div>
+    </div>
+  </div>
+
+  <!-- PDF Print Template -->
+  <div id="pdf-template" style="display:none;">
+    <div class="pf-page">
+      <div class="pf-title-block">
+        <div class="pf-title">แบบฟอร์มสำหรับกรอกข้อมูลลูกค้าเข้าระบบ Smartsoft / Feed</div>
+        <div class="pf-subtitle">ประจำปี 2026</div>
+      </div>
+      <div class="pf-topline"></div>
+
+      <div class="pf-section-header">ข้อมูลลูกค้า</div>
+      <div class="pf-row" style="grid-template-columns:1fr 2.2fr 1.4fr;">
+        <div class="pf-field"><div class="pf-label">CV Code</div><div class="pf-value" id="pf-cv-code"></div><div class="pf-line"></div></div>
+        <div class="pf-field"><div class="pf-label">ชื่อลูกค้า</div><div class="pf-value" id="pf-customer-name"></div><div class="pf-line"></div></div>
+        <div class="pf-field"><div class="pf-label">ประเภทลูกค้า</div><div class="pf-value" id="pf-customer-type"></div><div class="pf-line"></div></div>
+      </div>
+
+      <div class="pf-section-header" style="margin-top:28px;">ข้อมูลลูกค้าบัญชีหลัก (ถ้ามี)</div>
+      <div class="pf-row" style="grid-template-columns:1fr 2.5fr;">
+        <div class="pf-field"><div class="pf-label">CV Code</div><div class="pf-value" id="pf-ref-cv-code"></div><div class="pf-line"></div></div>
+        <div class="pf-field"><div class="pf-label">ชื่อลูกค้า</div><div class="pf-value" id="pf-ref-customer"></div><div class="pf-line"></div></div>
+      </div>
+
+      <div class="pf-section-header" style="margin-top:28px;">พื้นที่การขาย</div>
+      <div class="pf-row" style="grid-template-columns:1fr 1fr; margin-bottom:10px;">
+        <div class="pf-field"><div class="pf-label">ภาค</div><div class="pf-value" id="pf-region"></div><div class="pf-line"></div></div>
+        <div class="pf-field"><div class="pf-label">กลุ่มเขต</div><div class="pf-value" id="pf-sub-region"></div><div class="pf-line"></div></div>
+      </div>
+      <div class="pf-row" style="grid-template-columns:1fr 1fr;">
+        <div class="pf-field"><div class="pf-label">เขตการขาย</div><div class="pf-value" id="pf-area"></div><div class="pf-line"></div></div>
+        <div class="pf-field"><div class="pf-label">จังหวัด</div><div class="pf-value" id="pf-province"></div><div class="pf-line"></div></div>
+      </div>
+      <div id="pf-location-row" class="pf-row" style="grid-template-columns:1fr 1fr; margin-top:10px;">
+        <div class="pf-field"><div class="pf-label">Latitude</div><div class="pf-value" id="pf-lat"></div><div class="pf-line"></div></div>
+        <div class="pf-field"><div class="pf-label">Longitude</div><div class="pf-value" id="pf-lng"></div><div class="pf-line"></div></div>
+      </div>
+
+      <div class="pf-section-header" style="margin-top:28px;">ช่องทางการรับเอกสาร</div>
+      <div style="display:flex; gap:32px; margin:10px 0 8px;">
+        <label class="pf-cb-row"><span class="pf-box" id="pf-mail-box"></span> ไปรษณีย์</label>
+        <label class="pf-cb-row"><span class="pf-box" id="pf-line-box"></span> Line Chat</label>
+        <label class="pf-cb-row"><span class="pf-box" id="pf-email-box"></span> Email</label>
+      </div>
+      <div class="pf-field" style="max-width:280px; margin-top:6px;">
+        <div class="pf-label">Email Address</div>
+        <div class="pf-value" id="pf-email-address"></div>
+        <div class="pf-line"></div>
+      </div>
+
+      <div class="pf-section-header" style="margin-top:28px;">หมายเหตุ</div>
+      <div class="pf-field" style="margin-top:10px;">
+        <div class="pf-value" id="pf-remark" style="min-height:18px;"></div>
+        <div class="pf-line" style="background:#1a3a5c; height:1.5px;"></div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:44px;">
+        <div style="text-align:center; min-width:200px;">
+          <div class="pf-sig-salesperson" id="pf-sig-salesperson"></div>
+          <div class="pf-sig-line"></div>
+          <div class="pf-sig-label">ผู้กรอกข้อมูล</div>
+          <div class="pf-sig-date" id="pf-sig-date"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://yhubakddmtabpubhkhkn.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_dBr6rMv_7NFC7cIgfZ8aMA__M7YDHMc';
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function showToast(message, type) {
+      const toast = document.getElementById("toast");
+      toast.className = "toast " + type;
+      toast.textContent = message;
+      toast.style.display = "block";
+      toast.style.animation = "none";
+      toast.offsetHeight;
+      toast.style.animation = "slideIn 0.6s ease forwards";
+      setTimeout(() => {
+        toast.style.animation = "fadeOut 0.8s ease forwards";
+        setTimeout(() => { toast.style.display = "none"; }, 400);
+      }, 2500);
+    }
+
+    function esc(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function localDateStr(d) {
+      const pad = n => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function tzOffset() {
+      const off = -new Date().getTimezoneOffset();
+      const sign = off >= 0 ? "+" : "-";
+      const h = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0");
+      const m = String(Math.abs(off) % 60).padStart(2, "0");
+      return `${sign}${h}:${m}`;
+    }
+
+    function setDefaultDates() {
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      document.getElementById("filter-from").value = localDateStr(first);
+      document.getElementById("filter-to").value   = localDateStr(last);
+    }
+
+    async function loadMasterFilters() {
+      try {
+        const [r1, r2, r3] = await Promise.all([
+          db.from("regions").select("region_code, region_name").order("region_code"),
+          db.from("sub_regions").select("sub_region_code, region_code"),
+          db.from("sales_areas").select("area_code, area_name, sub_region_code").order("area_code"),
+        ]);
+
+        window._regions    = r1.data || [];
+        window._subRegions = r2.data || [];
+        window._allAreas   = r3.data || [];
+
+        const regionSel = document.getElementById("filter-region");
+        window._regions.forEach(r => {
+          const o = document.createElement("option");
+          o.value = r.region_name;
+          o.dataset.code = r.region_code;
+          o.textContent = r.region_name;
+          regionSel.appendChild(o);
+        });
+
+        populateAreas("");
+      } catch (_) {}
+    }
+
+    function populateAreas(regionName) {
+      const areaSel = document.getElementById("filter-area");
+      const prev = areaSel.value;
+      areaSel.innerHTML = '<option value="">ทุกเขต</option>';
+
+      let areas = window._allAreas || [];
+
+      if (regionName) {
+        const region = window._regions.find(r => r.region_name === regionName);
+        if (region) {
+          const subCodes = new Set(
+            window._subRegions
+              .filter(s => String(s.region_code) === String(region.region_code))
+              .map(s => String(s.sub_region_code))
+          );
+          areas = areas.filter(a => subCodes.has(String(a.sub_region_code)));
+        }
+      }
+
+      areas.forEach(a => {
+        const o = document.createElement("option");
+        o.value = a.area_name;
+        o.textContent = a.area_name;
+        if (a.area_name === prev) o.selected = true;
+        areaSel.appendChild(o);
+      });
+    }
+
+    const PAGE_SIZE = 50;
+    let searchOffset = 0;
+    let activeFilters = null;
+
+    async function search(loadMore = false) {
+      if (!loadMore) {
+        activeFilters = {
+          dateFrom: document.getElementById("filter-from").value,
+          dateTo:   document.getElementById("filter-to").value,
+          region:   document.getElementById("filter-region").value,
+          area:     document.getElementById("filter-area").value,
+          name:     document.getElementById("filter-name").value.trim(),
+        };
+
+        if (activeFilters.dateFrom && activeFilters.dateTo &&
+            activeFilters.dateFrom > activeFilters.dateTo) {
+          showToast("วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด", "error");
+          return;
+        }
+
+        if (activeFilters.name && activeFilters.name.length < 3) {
+          showToast("กรุณาระบุชื่ออย่างน้อย 3 ตัวอักษร", "error");
+          return;
+        }
+
+        searchOffset = 0;
+      }
+
+      if (!activeFilters) return;
+      const { dateFrom, dateTo, region, area, name } = activeFilters;
+
+      const btn = document.getElementById("searchBtn");
+      const loadMoreBtn = document.getElementById("loadMoreBtn");
+      btn.disabled = true;
+      if (!loadMore) btn.textContent = "กำลังค้นหา...";
+      if (loadMoreBtn) {
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = "กำลังโหลด...";
+      }
+
+      try {
+        const tz = tzOffset();
+        let q = db.from("customers")
+          .select("id, customer_name, cv_code, created_at, customer_type, region, sales_area, created_by")
+          .order("created_at", { ascending: false })
+          .range(searchOffset, searchOffset + PAGE_SIZE);
+
+        if (dateFrom) q = q.gte("created_at", dateFrom + "T00:00:00" + tz);
+        if (dateTo)   q = q.lte("created_at", dateTo   + "T23:59:59" + tz);
+        if (region)   q = q.eq("region", region);
+        if (area)     q = q.eq("sales_area", area);
+        if (name)     q = q.ilike("created_by", `%${name}%`);
+
+        const { data, error } = await q;
+        if (error) throw error;
+
+        const results = document.getElementById("results");
+        const hasMore = data.length > PAGE_SIZE;
+        const rows = hasMore ? data.slice(0, PAGE_SIZE) : data;
+
+        if (!loadMore && !rows.length) {
+          results.innerHTML = '<p style="font-size:13px; color:#999; padding:4px 0;">ไม่พบข้อมูลในเงื่อนไขที่เลือก</p>';
+          return;
+        }
+
+        const cards = rows.map(r => {
+          const date = r.created_at
+            ? new Date(r.created_at).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })
+            : "";
+          return `
+          <div class="result-card">
+            <div>
+              <div class="result-name">${esc(r.customer_name)}</div>
+              <div class="result-meta">
+                ${r.cv_code ? `<span class="badge">${esc(r.cv_code)}</span>` : ""}
+                ${esc(r.customer_type || "")}
+                ${r.region ? ` · ${esc(r.region)}` : ""}
+                ${r.sales_area ? ` · ${esc(r.sales_area)}` : ""}
+                ${r.created_by ? ` · ${esc(r.created_by)}` : ""}
+                · ${date}
+              </div>
+            </div>
+            <button onclick="reprintRecord('${r.id}')" class="btn-primary"
+              style="height:32px; padding:0 16px; font-size:12px; flex-shrink:0; margin-left:12px;">
+              🖨 พิมพ์
+            </button>
+          </div>`;
+        }).join("");
+
+        if (loadMore) {
+          loadMoreBtn?.remove();
+          results.insertAdjacentHTML("beforeend", cards);
+        } else {
+          results.innerHTML = cards;
+        }
+
+        searchOffset += rows.length;
+        if (hasMore) {
+          results.insertAdjacentHTML("beforeend", `
+            <button class="btn-outline" id="loadMoreBtn"
+              style="width:100%; margin-top:8px;">
+              โหลดข้อมูลเพิ่มเติม
+            </button>
+          `);
+          document.getElementById("loadMoreBtn").onclick = () => search(true);
+        }
+      } catch (err) {
+        showToast("ค้นหาไม่สำเร็จ: " + (err.message || err), "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "ค้นหา";
+        if (loadMoreBtn?.isConnected) {
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.textContent = "โหลดข้อมูลเพิ่มเติม";
+        }
+      }
+    }
+
+    async function reprintRecord(id) {
+      try {
+        const { data, error } = await db.from("customers").select("*").eq("id", id).single();
+        if (error || !data) { showToast("ไม่พบข้อมูล", "error"); return; }
+        await generatePDF({
+          cv_code:           data.cv_code || "",
+          customer_name:     data.customer_name || "",
+          customer_type:     data.customer_type || "",
+          ref_cv_code:       data.ref_cv_code || "",
+          ref_customer_name: data.ref_customer || "",
+          region_name:       data.region || "",
+          sub_region_name:   data.sub_region || "",
+          area_name:         data.sales_area || "",
+          province_name:     data.province || "",
+          doc_channels:      data.doc_channel || "",
+          doc_email_address: data.doc_email || "",
+          created_by:        data.created_by || "",
+          remark:            data.remark || "",
+          date: data.created_at
+            ? new Date(data.created_at).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })
+            : "",
+          latitude:  data.latitude || null,
+          longitude: data.longitude || null,
+        });
+      } catch (err) {
+        showToast("เกิดข้อผิดพลาด: " + err.message, "error");
+      }
+    }
+
+    async function generatePDF(data) {
+      const ch = data.doc_channels ? data.doc_channels.split(", ") : [];
+      document.getElementById("pf-cv-code").textContent        = data.cv_code;
+      document.getElementById("pf-customer-name").textContent  = data.customer_name;
+      document.getElementById("pf-customer-type").textContent  = data.customer_type;
+      document.getElementById("pf-ref-cv-code").textContent    = data.ref_cv_code;
+      document.getElementById("pf-ref-customer").textContent   = data.ref_customer_name;
+      document.getElementById("pf-region").textContent         = data.region_name;
+      document.getElementById("pf-sub-region").textContent     = data.sub_region_name;
+      document.getElementById("pf-area").textContent           = data.area_name;
+      document.getElementById("pf-province").textContent       = data.province_name;
+      document.getElementById("pf-mail-box").textContent       = ch.includes("ไปรษณีย์") ? "✓" : "";
+      document.getElementById("pf-line-box").textContent       = ch.includes("Line Chat") ? "✓" : "";
+      document.getElementById("pf-email-box").textContent      = ch.includes("E-mail") ? "✓" : "";
+      document.getElementById("pf-email-address").textContent  = data.doc_email_address;
+      document.getElementById("pf-remark").textContent         = data.remark;
+      document.getElementById("pf-lat").textContent            = data.latitude || "";
+      document.getElementById("pf-lng").textContent            = data.longitude || "";
+      document.getElementById("pf-location-row").style.display = (data.latitude && data.longitude) ? "" : "none";
+      document.getElementById("pf-sig-salesperson").textContent = data.created_by;
+      document.getElementById("pf-sig-date").textContent       = "วันที่ " + data.date;
+
+      const template = document.getElementById("pdf-template");
+      template.style.display = "block";
+      try {
+        await document.fonts.ready;
+        const canvas = await html2canvas(template.querySelector(".pf-page"), {
+          scale: 2, allowTaint: false, useCORS: true, logging: false, backgroundColor: "#ffffff",
+        });
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        const pdfW = pdf.internal.pageSize.getWidth();
+        const pdfH = (canvas.height * pdfW) / canvas.width;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pdfW, pdfH);
+        const safeName = (data.customer_name || "form").replace(/[/\\:*?"<>|]/g, "_");
+        pdf.save("MIS_" + safeName + ".pdf");
+      } catch (err) {
+        showToast("สร้าง PDF ไม่สำเร็จ: " + err.message, "error");
+      } finally {
+        template.style.display = "none";
+      }
+    }
+
+    document.getElementById("searchBtn").onclick = () => search();
+    document.getElementById("filter-name").addEventListener("keydown", e => {
+      if (e.key === "Enter") search();
+    });
+    document.getElementById("filter-region").addEventListener("change", () => {
+      populateAreas(document.getElementById("filter-region").value);
+    });
+
+    setDefaultDates();
+    loadMasterFilters();
+  </script>
+</body>
+</html>

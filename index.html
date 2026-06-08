@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบฟอร์มข้อมูลลูกค้า Smartsoft</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&family=Prompt:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  </head>
+
+  <body>
+    <div class="card">
+      <div class="card-header">
+        <div class="header-text">
+          <h1>แบบฟอร์มข้อมูลลูกค้าระบบ Smartsoft</h1>
+          <p>ประจำปี 2026</p>
+        </div>
+        <div style="display:flex; gap:16px; align-items:center;">
+          <a href="reprint.html" class="header-link">Reprint ฟอร์ม</a>
+          <a href="admin.html" class="header-link">Admin →</a>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div id="toast" class="toast"></div>
+
+        <div class="section-label">ข้อมูลลูกค้า</div>
+        <div class="grid-3">
+          <div>
+            <label>CV Code</label>
+            <input type="text" id="cv_code" placeholder="เช่น 123456789" maxlength="9">
+          </div>
+          <div>
+            <label class="required">ชื่อลูกค้า</label>
+            <input type="text" id="customer_name" placeholder="ชื่อร้าน / บริษัท" aria-required="true">
+          </div>
+          <div>
+            <label class="required">ประเภทลูกค้า</label>
+            <select id="customer_type" aria-required="true">
+              <option value="">กำลังโหลด...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-label">ลูกค้าบัญชีหลัก (ถ้ามี)</div>
+        <div class="grid-2">
+          <div>
+            <label>CV Code</label>
+            <input type="text" id="ref_cv_code" placeholder="เช่น CV001">
+          </div>
+          <div>
+            <label>ชื่อลูกค้าบัญชีหลัก</label>
+            <input type="text" id="ref_customer_name" placeholder="ชื่อร้าน / บริษัท">
+          </div>
+        </div>
+
+        <div class="section-label">พื้นที่การขาย</div>
+        <div class="grid-4">
+          <div>
+            <label class="required">ภาค</label>
+            <select id="region" onchange="filterArea()" aria-required="true">
+              <option value="">กำลังโหลด...</option>
+            </select>
+          </div>
+          <div>
+            <label class="required">กลุ่มเขต</label>
+            <select id="sub_region" onchange="filterSalesArea()" disabled aria-required="true">
+              <option value="">เลือกกลุ่มเขต</option>
+            </select>
+          </div>
+          <div>
+            <label class="required">เขตการขาย</label>
+            <select id="sales_area" onchange="filterProvince()" disabled aria-required="true">
+              <option value="">เลือกเขตการขาย</option>
+            </select>
+          </div>
+          <div>
+            <label class="required">จังหวัด</label>
+            <select id="province" disabled aria-required="true">
+              <option value="">เลือกจังหวัด</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div style="display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap;">
+            <button type="button" id="locBtn" class="btn-outline" style="height:32px; font-size:12px; padding:0 12px; flex-shrink:0;">📍 ระบุตำแหน่งของร้านค้า</button>
+            <button type="button" id="mapBtn" class="btn-outline" style="height:32px; font-size:12px; padding:0 12px; flex-shrink:0;">🗺 เลือกบนแผนที่</button>
+            <span style="font-size:11px; color:#999; padding-bottom:8px; flex-shrink:0;">หรือระบุ</span>
+            <div>
+              <label style="font-size:11px; color:#666; margin-bottom:4px; display:block;">Latitude</label>
+              <input type="text" id="loc_lat" placeholder="เช่น 13.756331" inputmode="decimal" style="width:130px;">
+            </div>
+            <div>
+              <label style="font-size:11px; color:#666; margin-bottom:4px; display:block;">Longitude</label>
+              <input type="text" id="loc_lng" placeholder="เช่น 100.501762" inputmode="decimal" style="width:130px;">
+            </div>
+            <div id="loc-status" style="font-size:11px; color:#999; padding-bottom:8px;">ยังไม่ได้ระบุตำแหน่ง</div>
+          </div>
+          <div id="loc-map-wrap" style="display:none; margin-top:8px; border-radius:8px; overflow:hidden; border:1px solid #e2e6ea;">
+            <div id="loc-map" style="height:240px;"></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="two-col">
+          <div>
+            <div class="section-label" style="margin-top:0;">ช่องทางการรับเอกสาร</div>
+            <div class="cb-list">
+              <label class="cb-row">
+                <input type="checkbox" id="doc_post">
+                <span>จัดส่งทางไปรษณีย์</span>
+              </label>
+              <label class="cb-row">
+                <input type="checkbox" id="doc_line">
+                <span>จัดส่งผ่าน Line Chat</span>
+              </label>
+              <label class="cb-row">
+                <input type="checkbox" id="doc_email" onchange="toggleEmail()">
+                <span>จัดส่งผ่าน E-mail</span>
+              </label>
+              <div id="email_input" style="display:none;">
+                <input type="email" id="doc_email_address" placeholder="ระบุ E-mail">
+              </div>
+            </div>
+
+            <div class="section-label">พนักงานขาย</div>
+            <div>
+              <label class="required">ชื่อพนักงานขาย</label>
+              <input type="text" id="created_by" placeholder="พนักงานขาย" readonly>
+            </div>
+
+          </div>
+
+          <div>
+            <div class="section-label" style="margin-top:0;">หมายเหตุ</div>
+            <div>
+              <textarea id="remark" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn-primary" id="submitBtn">บันทึกข้อมูล</button>
+          <button class="btn-outline" id="printBtn">พิมพ์แบบฟอร์ม</button>
+        </div>
+
+
+      </div>
+    </div>
+
+
+    <!-- PDF Print Template -->
+    <div id="pdf-template" style="display:none;">
+      <div class="pf-page">
+
+        <div class="pf-title-block">
+          <div class="pf-title">แบบฟอร์มสำหรับกรอกข้อมูลลูกค้าเข้าระบบ Smartsoft / Feed</div>
+          <div class="pf-subtitle">ประจำปี 2026</div>
+        </div>
+        <div class="pf-topline"></div>
+
+        <!-- ข้อมูลลูกค้า -->
+        <div class="pf-section-header">ข้อมูลลูกค้า</div>
+        <div class="pf-row" style="grid-template-columns:1fr 2.2fr 1.4fr;">
+          <div class="pf-field"><div class="pf-label">CV Code</div><div class="pf-value" id="pf-cv-code"></div><div class="pf-line"></div></div>
+          <div class="pf-field"><div class="pf-label">ชื่อลูกค้า</div><div class="pf-value" id="pf-customer-name"></div><div class="pf-line"></div></div>
+          <div class="pf-field"><div class="pf-label">ประเภทลูกค้า</div><div class="pf-value" id="pf-customer-type"></div><div class="pf-line"></div></div>
+        </div>
+
+        <!-- ลูกค้าบัญชีหลัก -->
+        <div class="pf-section-header" style="margin-top:28px;">ข้อมูลลูกค้าบัญชีหลัก (ถ้ามี)</div>
+        <div class="pf-row" style="grid-template-columns:1fr 2.5fr;">
+          <div class="pf-field"><div class="pf-label">CV Code</div><div class="pf-value" id="pf-ref-cv-code"></div><div class="pf-line"></div></div>
+          <div class="pf-field"><div class="pf-label">ชื่อลูกค้า</div><div class="pf-value" id="pf-ref-customer"></div><div class="pf-line"></div></div>
+        </div>
+
+        <!-- พื้นที่การขาย -->
+        <div class="pf-section-header" style="margin-top:28px;">พื้นที่การขาย</div>
+        <div class="pf-row" style="grid-template-columns:1fr 1fr; margin-bottom:10px;">
+          <div class="pf-field"><div class="pf-label">ภาค</div><div class="pf-value" id="pf-region"></div><div class="pf-line"></div></div>
+          <div class="pf-field"><div class="pf-label">กลุ่มเขต</div><div class="pf-value" id="pf-sub-region"></div><div class="pf-line"></div></div>
+        </div>
+        <div class="pf-row" style="grid-template-columns:1fr 1fr;">
+          <div class="pf-field"><div class="pf-label">เขตการขาย</div><div class="pf-value" id="pf-area"></div><div class="pf-line"></div></div>
+          <div class="pf-field"><div class="pf-label">จังหวัด</div><div class="pf-value" id="pf-province"></div><div class="pf-line"></div></div>
+        </div>
+        <div id="pf-location-row" class="pf-row" style="grid-template-columns:1fr 1fr; margin-top:10px;">
+          <div class="pf-field"><div class="pf-label">Latitude</div><div class="pf-value" id="pf-lat"></div><div class="pf-line"></div></div>
+          <div class="pf-field"><div class="pf-label">Longitude</div><div class="pf-value" id="pf-lng"></div><div class="pf-line"></div></div>
+        </div>
+
+        <!-- ช่องทางการรับเอกสาร -->
+        <div class="pf-section-header" style="margin-top:28px;">ช่องทางการรับเอกสาร</div>
+        <div style="display:flex; gap:32px; margin:10px 0 8px;">
+          <label class="pf-cb-row"><span class="pf-box" id="pf-mail-box"></span> ไปรษณีย์</label>
+          <label class="pf-cb-row"><span class="pf-box" id="pf-line-box"></span> Line Chat</label>
+          <label class="pf-cb-row"><span class="pf-box" id="pf-email-box"></span> Email</label>
+        </div>
+        <div class="pf-field" style="max-width:280px; margin-top:6px;">
+          <div class="pf-label">Email Address</div>
+          <div class="pf-value" id="pf-email-address"></div>
+          <div class="pf-line"></div>
+        </div>
+
+        <!-- หมายเหตุ -->
+        <div class="pf-section-header" style="margin-top:28px;">หมายเหตุ</div>
+        <div class="pf-field" style="margin-top:10px;">
+          <div class="pf-value" id="pf-remark" style="min-height:18px;"></div>
+          <div class="pf-line" style="background:#1a3a5c; height:1.5px;"></div>
+        </div>
+
+        <!-- Signature -->
+        <div style="display:flex; justify-content:flex-end; margin-top:44px;">
+          <div style="text-align:center; min-width:200px;">
+            <div class="pf-sig-salesperson" id="pf-sig-salesperson"></div>
+            <div class="pf-sig-line"></div>
+            <div class="pf-sig-label">ผู้กรอกข้อมูล</div>
+            <div class="pf-sig-date" id="pf-sig-date"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const SUPABASE_URL = 'https://yhubakddmtabpubhkhkn.supabase.co';
+      const SUPABASE_ANON_KEY = 'sb_publishable_dBr6rMv_7NFC7cIgfZ8aMA__M7YDHMc';
+      const { createClient } = supabase;
+      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      let masterData = {};
+      let savedFormData = null;
+      let isLocked = false;
+      let locMap = null;
+      let locMarker = null;
+
+      function showToast(message, type, callback) {
+        const toast = document.getElementById("toast");
+        toast.className = "toast " + type;
+        toast.textContent = message;
+        toast.style.display = "block";
+        toast.style.animation = "none";
+        toast.offsetHeight;
+        toast.style.animation = "slideIn 0.6s ease forwards";
+        setTimeout(() => {
+          toast.style.animation = "fadeOut 0.8s ease forwards";
+          setTimeout(() => {
+            toast.style.display = "none";
+            if (callback) callback();
+          }, 400);
+        }, 2500);
+      }
+
+      function setLocation(lat, lng) {
+        document.getElementById("loc_lat").value = lat;
+        document.getElementById("loc_lng").value = lng;
+        const status = document.getElementById("loc-status");
+        status.textContent = `${lat}, ${lng}`;
+        status.style.color = "#2e7d52";
+      }
+
+      function initMap(lat, lng) {
+        const wrap = document.getElementById("loc-map-wrap");
+        wrap.style.display = "";
+        if (locMap) {
+          locMap.setView([lat, lng], 16);
+          locMarker.setLatLng([lat, lng]);
+          locMap.invalidateSize();
+        } else {
+          locMap = L.map("loc-map").setView([lat, lng], 16);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap"
+          }).addTo(locMap);
+          locMarker = L.marker([lat, lng], { draggable: true }).addTo(locMap);
+          locMarker.on("dragend", () => {
+            const p = locMarker.getLatLng();
+            setLocation(p.lat.toFixed(6), p.lng.toFixed(6));
+          });
+          locMap.on("click", e => {
+            locMarker.setLatLng(e.latlng);
+            setLocation(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6));
+          });
+        }
+      }
+
+      function detectLocation() {
+        if (!navigator.geolocation) {
+          showToast("เบราว์เซอร์นี้ไม่รองรับ GPS", "error");
+          return;
+        }
+        const btn = document.getElementById("locBtn");
+        btn.disabled = true;
+        btn.textContent = "กำลังระบุตำแหน่ง...";
+
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const lat = pos.coords.latitude.toFixed(6);
+            const lng = pos.coords.longitude.toFixed(6);
+            setLocation(lat, lng);
+            initMap(parseFloat(lat), parseFloat(lng));
+            btn.disabled = false;
+            btn.textContent = "📍 ระบุตำแหน่งอีกครั้ง";
+          },
+          err => {
+            const msgs = { 1: "ไม่อนุญาตการเข้าถึง GPS", 2: "ไม่สามารถระบุตำแหน่งได้", 3: "หมดเวลา กรุณาลองใหม่" };
+            const status = document.getElementById("loc-status");
+            status.textContent = msgs[err.code] || "เกิดข้อผิดพลาด";
+            status.style.color = "#e24b4a";
+            btn.disabled = false;
+            btn.textContent = "📍 ระบุตำแหน่งปัจจุบัน";
+          },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      }
+
+      function openMap() {
+        const existLat = parseFloat(document.getElementById("loc_lat").value);
+        const existLng = parseFloat(document.getElementById("loc_lng").value);
+        if (existLat && existLng) {
+          initMap(existLat, existLng);
+          return;
+        }
+        initMap(13.7563, 100.5018);
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            if (locMap) locMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+            if (locMarker) locMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      }
+
+      function toggleEmail() {
+        const checked = document.getElementById("doc_email").checked;
+        document.getElementById("email_input").style.display = checked ? "block" : "none";
+        if (!checked) document.getElementById("doc_email_address").value = "";
+      }
+
+      function resetSelect(select, placeholder, disabled = false) {
+        select.replaceChildren();
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = placeholder;
+        select.appendChild(option);
+        select.disabled = disabled;
+      }
+
+      function appendOption(select, value, label) {
+        const option = document.createElement("option");
+        option.value = value ?? "";
+        option.textContent = label ?? "";
+        select.appendChild(option);
+      }
+
+      window.onload = async function() {
+        const submitBtn = document.getElementById("submitBtn");
+        const printBtn = document.getElementById("printBtn");
+        submitBtn.disabled = true;
+        printBtn.disabled = true;
+        submitBtn.onclick = submitData;
+        printBtn.onclick = printForm;
+        document.getElementById("locBtn").onclick = detectLocation;
+        document.getElementById("mapBtn").onclick = openMap;
+
+        ["loc_lat", "loc_lng"].forEach(id => {
+          document.getElementById(id).addEventListener("input", () => {
+            const lat = parseFloat(document.getElementById("loc_lat").value);
+            const lng = parseFloat(document.getElementById("loc_lng").value);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              const status = document.getElementById("loc-status");
+              status.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+              status.style.color = "#2e7d52";
+              if (locMap && locMarker) {
+                locMarker.setLatLng([lat, lng]);
+                locMap.setView([lat, lng], locMap.getZoom());
+              }
+            }
+          });
+        });
+
+        try {
+          const [r1, r2, r3, r4, r5, r6] = await Promise.all([
+            db.from('regions').select('*').order('region_code'),
+            db.from('sub_regions').select('*').order('sub_region_code'),
+            db.from('sales_areas').select('*').order('area_code'),
+            db.from('provinces').select('*').order('province_name'),
+            db.from('customer_types').select('*').order('id'),
+            db.from('salespersons').select('*'),
+          ]);
+          const err = r1.error || r2.error || r3.error || r4.error || r5.error || r6.error;
+          if (err) throw err;
+          masterData = {
+            regions: r1.data,
+            subRegions: r2.data,
+            areas: r3.data,
+            provinces: r4.data,
+            customerTypes: r5.data,
+            salespersons: r6.data,
+          };
+          populateAll();
+          submitBtn.disabled = false;
+          printBtn.disabled = false;
+        } catch (err) {
+          showToast("โหลดข้อมูลไม่สำเร็จ: " + (err.message || err), "error");
+        }
+      };
+
+      function populateAll() {
+        const region = document.getElementById("region");
+        resetSelect(region, "เลือกภาค");
+        masterData.regions?.forEach(r => {
+          appendOption(region, r.region_code, r.region_name);
+        });
+
+        const type = document.getElementById("customer_type");
+        resetSelect(type, "เลือกประเภทลูกค้า");
+        masterData.customerTypes?.forEach(t => {
+          appendOption(type, t.id, t.type_name);
+        });
+      }
+
+      function filterArea() {
+        const regionCode = document.getElementById("region").value;
+        const subRegion = document.getElementById("sub_region");
+        const area = document.getElementById("sales_area");
+        const province = document.getElementById("province");
+
+        resetSelect(subRegion, "เลือกกลุ่มเขต", true);
+        resetSelect(area, "เลือกเขตการขาย", true);
+        resetSelect(province, "เลือกจังหวัด", true);
+        document.getElementById("created_by").value = "";
+
+        if (!regionCode) return;
+
+        const filtered = masterData.subRegions?.filter(s => s.region_code == regionCode) || [];
+        if (filtered.length === 1) {
+          resetSelect(subRegion, "เลือกกลุ่มเขต");
+          appendOption(subRegion, filtered[0].sub_region_code, filtered[0].sub_region_name);
+          subRegion.value = filtered[0].sub_region_code;
+          subRegion.disabled = true;
+          filterSalesArea(filtered[0].sub_region_code);
+        } else {
+          filtered?.forEach(s => {
+            appendOption(subRegion, s.sub_region_code, s.sub_region_name);
+          });
+          subRegion.disabled = false;
+        }
+      }
+
+      function filterSalesArea(autoCode) {
+        const subRegionCode = autoCode || document.getElementById("sub_region").value;
+        const area = document.getElementById("sales_area");
+        const province = document.getElementById("province");
+
+        resetSelect(province, "เลือกจังหวัด", true);
+        document.getElementById("created_by").value = "";
+
+        if (!subRegionCode) {
+          resetSelect(area, "เลือกเขตการขาย", true);
+          return;
+        }
+
+        const filtered = masterData.areas?.filter(a => a.sub_region_code == subRegionCode) || [];
+        resetSelect(area, "เลือกเขตการขาย");
+        filtered?.forEach(a => {
+          appendOption(area, a.area_code, a.area_name);
+        });
+        area.disabled = false;
+      }
+
+      function filterProvince() {
+        const areaCode = document.getElementById("sales_area").value;
+        const province = document.getElementById("province");
+
+        if (!areaCode) {
+          resetSelect(province, "เลือกจังหวัด", true);
+          document.getElementById("created_by").value = "";
+          return;
+        }
+
+        const filtered = masterData.provinces?.filter(p => String(p.area_code).trim() == String(areaCode).trim()) || [];
+        resetSelect(province, "เลือกจังหวัด");
+        filtered?.forEach(p => {
+          appendOption(province, p.province_code, p.province_name);
+        });
+        province.disabled = false;
+
+        const salesperson = masterData.salespersons?.find(s => String(s.area_code).trim() == String(areaCode).trim());
+        const spName = salesperson ? salesperson.salesperson : "";
+        document.getElementById("created_by").value = spName;
+      }
+
+      function getFormData() {
+        const areaCode = document.getElementById("sales_area").value;
+        const provinceCode = document.getElementById("province").value;
+        const regionCode = document.getElementById("region").value;
+        const subRegionCode = document.getElementById("sub_region").value;
+
+        return {
+          cv_code: document.getElementById("cv_code").value.trim(),
+          customer_name: document.getElementById("customer_name").value.trim(),
+          ref_cv_code: document.getElementById("ref_cv_code").value.trim(),
+          ref_customer_name: document.getElementById("ref_customer_name").value.trim(),
+          customer_type: masterData.customerTypes?.find(t => t.id == document.getElementById("customer_type").value)?.type_name || document.getElementById("customer_type").value,
+          region_code: regionCode,
+          region_name: masterData.regions?.find(r => r.region_code == regionCode)?.region_name || "",
+          sub_region_name: masterData.subRegions?.find(s => s.sub_region_code == subRegionCode)?.sub_region_name || "",
+          area_name: masterData.areas?.find(a => a.area_code == areaCode)?.area_name || "",
+          province_name: masterData.provinces?.find(p => p.province_code == provinceCode && String(p.area_code).trim() == String(areaCode).trim())?.province_name || "",
+          created_by: document.getElementById("created_by").value,
+          remark: document.getElementById("remark").value.trim(),
+          doc_channels: [
+            document.getElementById("doc_post").checked ? "ไปรษณีย์" : "",
+            document.getElementById("doc_line").checked ? "Line Chat" : "",
+            document.getElementById("doc_email").checked ? "E-mail" : ""
+          ].filter(Boolean).join(", "),
+          doc_email_address: document.getElementById("doc_email").checked
+            ? document.getElementById("doc_email_address").value.trim() : "",
+          date: new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }),
+          latitude: parseFloat(document.getElementById("loc_lat").value) || null,
+          longitude: parseFloat(document.getElementById("loc_lng").value) || null,
+        };
+      }
+
+      async function submitData() {
+        const required = ["customer_name", "customer_type", "region", "sub_region", "sales_area", "province", "created_by"];
+        for (let id of required) {
+          if (!document.getElementById(id).value.trim()) {
+            showToast("กรุณากรอกข้อมูลให้ครบทุกช่อง", "error");
+            return;
+          }
+        }
+
+        if (document.getElementById("doc_email").checked) {
+          const emailInput = document.getElementById("doc_email_address");
+          if (!emailInput.value.trim() || !emailInput.checkValidity()) {
+            showToast("กรุณาระบุ E-mail ให้ถูกต้อง", "error");
+            return;
+          }
+        }
+
+        const btn = document.getElementById("submitBtn");
+        btn.disabled = true;
+        btn.innerText = "กำลังบันทึก...";
+
+        const formData = getFormData();
+
+        try {
+          const { error } = await db.from('customers').insert([{
+            cv_code: formData.cv_code || null,
+            customer_name: formData.customer_name,
+            customer_type: formData.customer_type,
+            region: formData.region_name,
+            sub_region: formData.sub_region_name,
+            sales_area: formData.area_name,
+            province: formData.province_name,
+            ref_cv_code: formData.ref_cv_code || null,
+            ref_customer: formData.ref_customer_name || null,
+            created_by: formData.created_by,
+            remark: formData.remark || null,
+            doc_channel: formData.doc_channels || null,
+            doc_email: formData.doc_email_address || null,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+          }]);
+
+          if (error) {
+            const msg = error.message?.includes('cv_code')
+              ? "CV Code นี้มีในระบบแล้ว กรุณาตรวจสอบอีกครั้ง"
+              : "เกิดข้อผิดพลาด: " + error.message;
+            showToast(msg, "error");
+            return;
+          }
+
+          showToast("บันทึกสำเร็จ!", "success");
+          lockForm(formData);
+        } catch (err) {
+          showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + (err.message || err), "error");
+        } finally {
+          btn.disabled = false;
+          if (!isLocked) {
+            btn.innerText = "บันทึกข้อมูล";
+          }
+        }
+      }
+
+      function resetForm() {
+        document.querySelectorAll("input[type='text'], input[type='email'], textarea").forEach(el => el.value = "");
+        document.getElementById("customer_type").value = "";
+        document.getElementById("region").value = "";
+        resetSelect(document.getElementById("sub_region"), "เลือกกลุ่มเขต", true);
+        resetSelect(document.getElementById("sales_area"), "เลือกเขตการขาย", true);
+        resetSelect(document.getElementById("province"), "เลือกจังหวัด", true);
+        document.getElementById("created_by").value = "";
+        document.getElementById("doc_post").checked = false;
+        document.getElementById("doc_line").checked = false;
+        document.getElementById("doc_email").checked = false;
+        document.getElementById("doc_email_address").value = "";
+        document.getElementById("email_input").style.display = "none";
+        document.getElementById("loc_lat").value = "";
+        document.getElementById("loc_lng").value = "";
+        const locStatus = document.getElementById("loc-status");
+        locStatus.textContent = "ยังไม่ได้ระบุตำแหน่ง";
+        locStatus.style.color = "#999";
+        document.getElementById("loc_lat").readOnly = false;
+        document.getElementById("loc_lng").readOnly = false;
+        document.getElementById("locBtn").textContent = "📍 ระบุตำแหน่งปัจจุบัน";
+        document.getElementById("loc-map-wrap").style.display = "none";
+        if (locMap) { locMap.remove(); locMap = null; locMarker = null; }
+      }
+
+      function lockForm(data) {
+        savedFormData = data;
+        isLocked = true;
+
+        document.querySelectorAll("#cv_code, #customer_name, #ref_cv_code, #ref_customer_name, #doc_email_address, #remark").forEach(el => el.readOnly = true);
+        document.querySelectorAll("#customer_type, #region, #sub_region, #sales_area, #province").forEach(el => el.disabled = true);
+        document.querySelectorAll("#doc_post, #doc_line, #doc_email").forEach(el => el.disabled = true);
+        document.getElementById("locBtn").disabled = true;
+        document.getElementById("mapBtn").disabled = true;
+        document.getElementById("loc_lat").readOnly = true;
+        document.getElementById("loc_lng").readOnly = true;
+
+        const submitBtn = document.getElementById("submitBtn");
+        submitBtn.className = "btn-outline";
+        submitBtn.innerText = "เพิ่มลูกค้าใหม่";
+        submitBtn.onclick = unlockForm;
+        submitBtn.disabled = false;
+
+        const printBtn = document.getElementById("printBtn");
+        printBtn.className = "btn-primary";
+        printBtn.innerText = "พิมพ์เอกสาร";
+        printBtn.disabled = false;
+      }
+
+      function unlockForm() {
+        isLocked = false;
+        savedFormData = null;
+        resetForm();
+
+        document.querySelectorAll("#cv_code, #customer_name, #ref_cv_code, #ref_customer_name, #doc_email_address, #remark").forEach(el => el.readOnly = false);
+        document.querySelectorAll("#customer_type, #region").forEach(el => el.disabled = false);
+        document.querySelectorAll("#sub_region, #sales_area, #province").forEach(el => el.disabled = true);
+        document.querySelectorAll("#doc_post, #doc_line, #doc_email").forEach(el => el.disabled = false);
+        document.getElementById("locBtn").disabled = false;
+        document.getElementById("mapBtn").disabled = false;
+        document.getElementById("loc_lat").readOnly = false;
+        document.getElementById("loc_lng").readOnly = false;
+
+        const submitBtn = document.getElementById("submitBtn");
+        submitBtn.className = "btn-primary";
+        submitBtn.innerText = "บันทึกข้อมูล";
+        submitBtn.onclick = submitData;
+        submitBtn.disabled = false;
+
+        const printBtn = document.getElementById("printBtn");
+        printBtn.className = "btn-outline";
+        printBtn.innerText = "พิมพ์แบบฟอร์ม";
+        printBtn.disabled = false;
+      }
+
+
+      async function printForm() {
+        let data;
+        if (isLocked && savedFormData) {
+          data = savedFormData;
+        } else {
+          const required = ["customer_name", "customer_type", "region", "sub_region", "sales_area", "province", "created_by"];
+          for (let id of required) {
+            if (!document.getElementById(id).value.trim()) {
+              showToast("กรุณากรอกข้อมูลให้ครบก่อนพิมพ์", "error");
+              return;
+            }
+          }
+          if (document.getElementById("doc_email").checked) {
+            const emailInput = document.getElementById("doc_email_address");
+            if (!emailInput.value.trim() || !emailInput.checkValidity()) {
+              showToast("กรุณาระบุ E-mail ให้ถูกต้อง", "error");
+              return;
+            }
+          }
+          data = getFormData();
+        }
+        const btn = document.getElementById("printBtn");
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "กำลังสร้าง PDF...";
+        await generatePDF(data);
+        btn.disabled = false;
+        btn.innerText = originalText;
+      }
+
+      async function generatePDF(data) {
+        const ch = data.doc_channels ? data.doc_channels.split(", ") : [];
+        document.getElementById("pf-cv-code").textContent        = data.cv_code || "";
+        document.getElementById("pf-customer-name").textContent  = data.customer_name || "";
+        document.getElementById("pf-customer-type").textContent  = data.customer_type || "";
+        document.getElementById("pf-ref-cv-code").textContent    = data.ref_cv_code || "";
+        document.getElementById("pf-ref-customer").textContent   = data.ref_customer_name || "";
+        document.getElementById("pf-region").textContent         = data.region_name || "";
+        document.getElementById("pf-sub-region").textContent     = data.sub_region_name || "";
+        document.getElementById("pf-area").textContent           = data.area_name || "";
+        document.getElementById("pf-province").textContent       = data.province_name || "";
+        document.getElementById("pf-mail-box").textContent       = ch.includes("ไปรษณีย์") ? "✓" : "";
+        document.getElementById("pf-line-box").textContent       = ch.includes("Line Chat") ? "✓" : "";
+        document.getElementById("pf-email-box").textContent      = ch.includes("E-mail") ? "✓" : "";
+        document.getElementById("pf-email-address").textContent  = data.doc_email_address || "";
+        document.getElementById("pf-remark").textContent         = data.remark || "";
+        document.getElementById("pf-lat").textContent            = data.latitude || "";
+        document.getElementById("pf-lng").textContent            = data.longitude || "";
+        document.getElementById("pf-location-row").style.display = (data.latitude && data.longitude) ? "" : "none";
+        document.getElementById("pf-sig-salesperson").textContent = data.created_by || "";
+        document.getElementById("pf-sig-date").textContent       = "วันที่ " + data.date;
+
+        const template = document.getElementById("pdf-template");
+        template.style.display = "block";
+        try {
+          await document.fonts.ready;
+          const canvas = await html2canvas(template.querySelector(".pf-page"), {
+            scale: 2, allowTaint: false, useCORS: true, logging: false, backgroundColor: "#ffffff",
+          });
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+          const pdfW = pdf.internal.pageSize.getWidth();
+          const pdfH = (canvas.height * pdfW) / canvas.width;
+          pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pdfW, pdfH);
+          const safeName = (data.customer_name || "form").replace(/[/\\:*?"<>|]/g, "_");
+          pdf.save("MIS_" + safeName + ".pdf");
+        } catch (err) {
+          showToast("สร้าง PDF ไม่สำเร็จ: " + err.message, "error");
+        } finally {
+          template.style.display = "none";
+        }
+      }
+    </script>
+  </body>
+</html>
