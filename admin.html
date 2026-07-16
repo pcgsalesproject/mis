@@ -67,6 +67,13 @@
         </div>
         <div>
           <label>&nbsp;</label>
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400; white-space:nowrap;">
+            <input type="checkbox" id="filter-no-cv">
+            ยังไม่ได้กรอก CV Code
+          </label>
+        </div>
+        <div>
+          <label>&nbsp;</label>
           <button class="btn-search" id="searchBtn">ค้นหา</button>
         </div>
         <div>
@@ -92,7 +99,7 @@
           <div class="s-value s-text" id="sum-top-type">—</div>
           <div class="s-sub" id="sum-top-type-count"></div>
         </div>
-        <div class="summary-card" id="sum-no-cv-card">
+        <div class="summary-card" id="sum-no-cv-card" style="cursor:pointer;" title="คลิกเพื่อกรองเฉพาะรายการที่ยังไม่ได้กรอก CV Code">
           <div class="s-label">ยังไม่ได้บันทึก CV</div>
           <div class="s-value" id="sum-no-cv" style="color:#e24b4a;">—</div>
           <div class="s-sub">รายการ</div>
@@ -212,6 +219,7 @@
 
   function applySearch() {
     const q = document.getElementById("filter-search").value.trim().toLowerCase();
+    const noCvOnly = document.getElementById("filter-no-cv").checked;
     filteredData = q
       ? allData.filter(r =>
           (r.customer_name || "").toLowerCase().includes(q) ||
@@ -219,6 +227,9 @@
           (r.created_by || "").toLowerCase().includes(q)
         )
       : [...allData];
+    if (noCvOnly) {
+      filteredData = filteredData.filter(r => !r.cv_code || !String(r.cv_code).trim());
+    }
     currentPage = 1;
     renderSummary(filteredData);
     renderTable(filteredData);
@@ -429,6 +440,16 @@
       if (e.key === "Enter") applySearch();
     });
     document.getElementById("filter-search").addEventListener("input", () => {
+      applySearch();
+    });
+
+    document.getElementById("filter-no-cv").addEventListener("change", () => {
+      applySearch();
+    });
+
+    document.getElementById("sum-no-cv-card").addEventListener("click", () => {
+      const cb = document.getElementById("filter-no-cv");
+      cb.checked = !cb.checked;
       applySearch();
     });
 
